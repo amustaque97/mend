@@ -44,10 +44,6 @@ fn main() {
                 println!("Formula(e) missing, please provide a formula name");
                 exit(1);
             }
-            println!(
-                "{:?}",
-                start::find_formula_plist_file(formula.as_ref().unwrap().as_str())
-            );
             services_cli::service_load(formula.as_ref().unwrap().as_str());
         }
         _ => print!("Oops!"),
