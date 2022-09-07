@@ -1,5 +1,4 @@
 mod lib;
-use crate::lib::service::commands::start;
 use crate::lib::service::services_cli;
 use crate::lib::service::system;
 use clap::Parser;
@@ -45,6 +44,13 @@ fn main() {
                 exit(1);
             }
             services_cli::service_load(formula.as_ref().unwrap().as_str());
+        }
+        Service::Services(Action::Stop { ref formula }) => {
+            if formula.is_none() {
+                println!("Formula(e) missing, please provide a formula name");
+                exit(1);
+            }
+            services_cli::service_unload(formula.as_ref().unwrap().as_str());
         }
         _ => print!("Oops!"),
     }
