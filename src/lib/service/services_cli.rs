@@ -27,6 +27,28 @@ pub fn service_load(formula: &str) {
     }
 }
 
+pub fn service_unload(formula: &str) {
+    if system::check_if_launchctl_exists().is_file() {
+        let file = start::find_formula_plist_file(&formula);
+        if file.is_file() {
+            let file_name = &file.file_name().unwrap();
+            let new_path = format!("{}/{}", dest(), file_name.to_str().unwrap());
+            if Path::new(&new_path).exists() {
+                // below sequence is important
+                launchctl_unload(&new_path).expect("Unable to bootout given formula");
+                fs::remove_file(new_path).expect("Unable to remove plist config file");
+            } else {
+                if !check_if_formula_already_running(&file) {
+                    println!("Looks like the given formula {} is not running", formula);
+                } else {
+                    println!("This is unusual plist file not found for {}", formula);
+                    exit(1);
+                }
+            }
+        }
+    }
+}
+
 pub fn dest() -> String {
     if system::is_root() {
         return system::boot_path().into_os_string().into_string().unwrap();
@@ -38,6 +60,16 @@ pub fn dest() -> String {
 pub fn launchctl_load(file: &str) -> Result<(), Box<dyn Error>> {
     let _output = Command::new("launchctl")
         .arg("bootstrap")
+        .arg(system::domain_target())
+        .arg(file)
+        .status();
+
+    Ok(())
+}
+
+pub fn launchctl_unload(file: &str) -> Result<(), Box<dyn Error>> {
+    let _output = Command::new("launchctl")
+        .arg("bootout")
         .arg(system::domain_target())
         .arg(file)
         .status();
