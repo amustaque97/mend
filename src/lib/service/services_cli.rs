@@ -1,9 +1,10 @@
 use crate::lib::service::commands::start;
 use crate::lib::service::system;
+use regex::Regex;
 use std::error::Error;
 use std::fs;
-use std::path::Path;
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{exit, Command};
 
 #[allow(unused_must_use)]
 pub fn service_load(formula: &str) {
@@ -12,7 +13,12 @@ pub fn service_load(formula: &str) {
     if system::check_if_launchctl_exists().is_file() {
         let file = start::find_formula_plist_file(&formula);
         if file.is_file() {
-            let new_path = format!("{}/{}", dest(), file.file_name().unwrap().to_str().unwrap());
+            let file_name = &file.file_name().unwrap();
+            if check_if_formula_already_running(&file) {
+                println!("{} is already running...", formula);
+                exit(1);
+            }
+            let new_path = format!("{}/{}", dest(), file_name.to_str().unwrap());
             if !Path::new(&new_path).exists() {
                 fs::copy(file, &new_path).expect("Failed to copy plist file");
             }
@@ -37,4 +43,21 @@ pub fn launchctl_load(file: &str) -> Result<(), Box<dyn Error>> {
         .status();
 
     Ok(())
+}
+
+pub fn check_if_formula_already_running(file: &PathBuf) -> bool {
+    let label = file.as_path().file_stem().unwrap();
+
+    let command = Command::new("launchctl")
+        .arg("list")
+        .arg(label)
+        .output()
+        .expect("Failed to understand whether service is already running or not");
+
+    let output = String::from_utf8(command.stdout).unwrap();
+
+    // Special syntax to write RAW STRING
+    let re = Regex::new(r#""PID" = ([0-9]*);"#).unwrap();
+
+    re.is_match(&output)
 }
